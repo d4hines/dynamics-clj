@@ -30,9 +30,16 @@
                              :method "POST"
                              :headers {"Content-Type" "application/x-www-form-urlencoded"
                                         "Content-Length" (utf-8-octet-length reqstring)}}]
-    tokenrequestoptions))
+    (client/post )))
 
 
 (request config)
 (client/get "http://jsonplaceholder.typicode.com/posts" {:as :json})
 
+(client/post "http://example.com/api"
+             {
+              :headers {"X-Api-Version" "2"}
+              :content-type :json
+              :socket-timeout 1000  ;; in milliseconds
+              :conn-timeout 1000    ;; in milliseconds
+              :accept :json})
