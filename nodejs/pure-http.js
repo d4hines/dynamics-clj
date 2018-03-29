@@ -18,7 +18,7 @@ tokenendpoint = tokenendpoint.toLowerCase().replace('https://','');
  
 //get the authorization endpoint host name
 var authhost = tokenendpoint.split('/')[0];
- 
+
 //get the authorization endpoint path
 var authpath = '/' + tokenendpoint.split('/').slice(1).join('/');
  
