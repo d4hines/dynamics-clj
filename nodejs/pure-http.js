@@ -1,12 +1,15 @@
 // oauth token endpoint: https://login.microsoftonline.com/94348c85-35ff-4ed8-aecd-61b85d0f4c17/oauth2/token
 'use strict';
+process.env.https_proxy = "http://127.0.0.1:8888";
+process.env.http_proxy = "http://127.0.0.1:8888";
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 var https = require('https');
 console.log('pure http test')
 //set these values to retrieve the oauth token
 var crmorg = 'https://d4hines.crm.dynamics.com';
 var clientid = '020a1b54-a7d4-4732-8efc-01c13adf8c0c';
 var username = 'd4hines@d4hines.onmicrosoft.com';
-var userpassword = 'YechiGlihyechu8';
+var userpassword = 'yqW4FyhE9TsQcA6O';
 var tokenendpoint = 'https://login.microsoftonline.com/94348c85-35ff-4ed8-aecd-61b85d0f4c17/oauth2/token';
  
 //set these values to query your crm data
