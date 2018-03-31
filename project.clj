@@ -8,4 +8,5 @@
                  [ring/ring-codec "1.1.0"]
                  [clj-http "3.8.0"]
                  [cheshire "5.8.0"]
-                 [cheshire "5.8.0"]])
+                 [cheshire "5.8.0"]
+                 [environ "1.1.0"]])

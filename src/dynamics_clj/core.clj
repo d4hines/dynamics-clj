@@ -4,23 +4,19 @@
             [clojure.pprint :refer [pprint]]
             [clojure.string :as str]
             [ring.util.codec :refer [url-encode]]
-            [cheshire.core :refer [generate-string]]))
-
-(def config {:crmorg "https://d4hines.crm.dynamics.com"
-             :clientid "The id of the native app you registered in azure"
-             :username "username"
-             :password "password"
-             :tokenendpoint "https://login.microsoftonline.com/yourtkenendpoint/oauth2/token"
-             :crmwebapipath "/api/data/v9.0/"}) ;; replace v9.0 as appropriate
+            [cheshire.core :refer [generate-string]]
+            [environ.core :refer [env]]))
 
 (defn error-fn [exception] (.getMessage exception))
 
 (defn get-token
   "Retrieves an OAuth2 token from Azure Active Directory.
   Uses username and password credentials. Passes retrieved token to `callback`"
-  [{:keys [crmorg clientid username password tokenendpoint]}
+  [
    callback]
-  (let [reqstring (str "client_id=" clientid
+
+  (let [{:keys [crmorg clientid username password tokenendpoint]} env
+        reqstring (str "client_id=" clientid
                        "&resource=" (url-encode crmorg)
                        "&username=" (url-encode username)
                        "&password=" (url-encode password)
@@ -56,7 +52,7 @@
   `id` is the entity's GUID.
   `fields` is a coll. of logical field names.
   `callback` is a function that accepts one argument which is the a map representing the retrieved entity"
-  (get-token config
+  (get-token
              #(client/get
                (str api-url entity-col "(" id ")?$select=" (concat-fields fields))
                (assoc crm-options :oauth-token %)
@@ -92,7 +88,7 @@
                                   :oauth-token %
                                   :body (generate-string new-record))
                            (fn [response] (let [url (get-in response [:headers "OData-EntityId"])
-                                                id (second (str/split url #"\(|\)" ))]
+                                                id (second (str/split url #"\(|\)"))]
                                             (callback id)))
                            error-fn)))
 
@@ -105,11 +101,11 @@
   `callback` is a function of zero arguments called on succes."
   (get-token config
              #(client/patch (str api-url entity-col "(" id ")")
-                           (assoc crm-options :content-type :json
-                                  :oauth-token %
-                                  :body (generate-string update-record))
-                           callback
-                           error-fn)))
+                            (assoc crm-options :content-type :json
+                                   :oauth-token %
+                                   :body (generate-string update-record))
+                            callback
+                            error-fn)))
 
 (update-record "contacts" {:firstname "test6" :lastname "person6"} pprint)
 
