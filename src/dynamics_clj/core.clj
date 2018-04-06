@@ -23,7 +23,7 @@
 
 (def crm-options
   "Defaults for clj-http requests, along with the headers needed for the CRM OData requests."
-  {:as :json
+  {:as :json-string-keys
    :headers {"OData-MaxVersion" "4.0",
              "OData-Version" "4.0",
              "Accept" "application/json",
@@ -47,7 +47,7 @@
   (retrieve \"contacts\" \"914b2297-bf2f-e811-a833-000d3a33b3a3\" [\"fullname\",\"createdon\"])"
   [config entity-col id fields]
   (try+ (:body (retrieve* config (str (:crmwebapipath config) entity-col "(" id ")"
-                               (if fields (str "?" (build-select fields)) nil))))
+                                    (if fields (str "?" (build-select fields)) nil))))
         (catch [:status 404] [] {:status 404 :message (str "Id " id " not found in " entity-col)})))
 
 (defn retrieve-multiple
@@ -64,7 +64,7 @@
         combined (filter identity [field-str filter-str])
         final-uri (str (:crmwebapipath config)  entity-col
                        (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil))]
-    (get-in (retrieve* config final-uri) [:body :value])))
+    (get-in (retrieve* config final-uri) [:body "value"])))
 
 (defn create-record
   "Creates a record in CRM, returning the new id.
