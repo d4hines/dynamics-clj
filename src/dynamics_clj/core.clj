@@ -8,8 +8,8 @@
 (defn get-token
   "Retrieves an OAuth2 token from Azure Active Directory.
   Uses username and password credentials.
-  `config` is a map of the configuration needed for OAuth with the CRM. See README for examples.
-  [config]"
+  `config` is a map of the configuration needed for OAuth with the CRM. See README for examples."
+  [config]
   (let [{:keys [crmorg clientid username password tokenendpoint]} config
         reqstring (str "client_id=" clientid
                        "&resource=" (url-encode crmorg)
@@ -45,8 +45,8 @@
   `fields` is a coll. of logical field names. Pass `nil` to include all fields.
   e.g.
   (retrieve \"contacts\" \"914b2297-bf2f-e811-a833-000d3a33b3a3\" [\"fullname\",\"createdon\"])"
-  [entity-col id fields]
-  (try+ (:body (retrieve* [config] (str (:api-url config) entity-col "(" id ")"
+  [config entity-col id fields]
+  (try+ (:body (retrieve* config (str (:crmwebapipath config) entity-col "(" id ")"
                                (if fields (str "?" (build-select fields)) nil))))
         (catch [:status 404] [] {:status 404 :message (str "Id " id " not found in " entity-col)})))
 
@@ -62,9 +62,9 @@
   (let [field-str (if fields (build-select fields) nil)
         filter-str (if filter-expr (str "$filter=" filter-expr) nil)
         combined (filter identity [field-str filter-str])
-        final-uri (str (:api-url config) config) entity-col
-                       (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil)]
-    (get-in (retrieve* final-uri) [:body :value])))
+        final-uri (str (:crmwebapipath config)  entity-col
+                       (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil))]
+    (get-in (retrieve* config final-uri) [:body :value])))
 
 (defn create-record
   "Creates a record in CRM, returning the new id.
@@ -74,7 +74,7 @@
   e.g
   (create-record \"contacts\" {:firstname \"test\" :lastname \"person\"})"
   [config entity-col new-record]
-  (let [response (client/post (str (:api-url config) entity-col)
+  (let [response (client/post (str (:crmwebapipath config) entity-col)
                               (assoc crm-options :content-type :json
                                      :oauth-token (get-token config)
                                      :body (generate-string new-record)))
@@ -89,7 +89,7 @@
   e.g
   (update-record \"contact\" {:firstname \"bob_updated\" :lastname \"person_updated\"})"
   [config entity-col id updated-record]
-  (client/patch (str (:api-url config) entity-col "(" id ")")
+  (client/patch (str (:crmwebapipath config) entity-col "(" id ")")
                 (assoc crm-options :content-type :json
                        :oauth-token (get-token config)
                        :body (generate-string updated-record))))
@@ -101,6 +101,6 @@
   e.g
   (delete-record \"contact\" \"9695bd5c-2635-e811-a834-000d3a33b1e4\")"
   [config entity-col id]
-  (client/delete (str (:api-url config) entity-col "(" id ")")
+  (client/delete (str (:crmwebapipath config) entity-col "(" id ")")
                  (assoc crm-options :content-type :json
                         :oauth-token (get-token config))))
