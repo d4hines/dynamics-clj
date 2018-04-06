@@ -8,8 +8,8 @@
 (defn get-token
   "Retrieves an OAuth2 token from Azure Active Directory.
   Uses username and password credentials.
-  `config` is a map of the configuration needed for OAuth with the CRM. See README for examples."
-  [config]
+  `config` is a map of the configuration needed for OAuth with the CRM. See README for examples.
+  [config]"
   (let [{:keys [crmorg clientid username password tokenendpoint]} config
         reqstring (str "client_id=" clientid
                        "&resource=" (url-encode crmorg)
@@ -63,7 +63,7 @@
         filter-str (if filter-expr (str "$filter=" filter-expr) nil)
         combined (filter identity [field-str filter-str])
         final-uri (str (:api-url config) config) entity-col
-                       (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil))]
+                       (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil)]
     (get-in (retrieve* final-uri) [:body :value])))
 
 (defn create-record
