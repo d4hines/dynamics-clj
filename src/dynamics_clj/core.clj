@@ -1,18 +1,15 @@
 (ns dynamics-clj.core
   (:require [cheshire.core :refer [generate-string]]
             [clj-http.client :as client]
-            [clojure.pprint :refer [pprint]]
             [clojure.string :as str]
             [ring.util.codec :refer [url-encode]]
-            [cheshire.core :refer [generate-string]]
-            [clojure.edn :refer [read-string]]))
-
-(def config (read-string (slurp "./crm-config.edn")))
+            [slingshot.slingshot :refer [try+]]))
 
 (defn get-token
   "Retrieves an OAuth2 token from Azure Active Directory.
-  Uses username and password credentials. Passes retrieved token to `callback`"
-  []
+  Uses username and password credentials.
+  `config` is a map of the configuration needed for OAuth with the CRM. See README for examples."
+  [config]
   (let [{:keys [crmorg clientid username password tokenendpoint]} config
         reqstring (str "client_id=" clientid
                        "&resource=" (url-encode crmorg)
@@ -33,65 +30,68 @@
              "Content-Type" "application/json; charset=utf-8",
              "Prefer" "odata.maxpagesize=500,odata.include-annotations=OData.Community.Display.V1.FormattedValue"}})
 
-(def api-url (str (:crmorg config) (:crmwebapipath config)))
-
 (defn build-select [fields] (let [field-count (count fields)]
                               (cond (=  0 field-count) nil
                                     (= 1 field-count) (str "$select=" (first fields)))
                               :else (str "$select=" (str/join "," fields))))
 
-(defn retrieve* [uri] (client/get uri (assoc crm-options :oauth-token (get-token) :debug true)))
+(defn retrieve* [config uri] (client/get uri (assoc crm-options :oauth-token (get-token config))))
 
 (defn retrieve
   "Retrieves a single entity from CRM.
+   `config` is a map of the configuration needed for OAuth with the CRM. See README for examples.
   `entity-col` is the entity's logical collection name (the plural, lowercase).
   `id` is the entity's GUID.
   `fields` is a coll. of logical field names. Pass `nil` to include all fields.
   e.g.
   (retrieve \"contacts\" \"914b2297-bf2f-e811-a833-000d3a33b3a3\" [\"fullname\",\"createdon\"])"
-  [entity-col id]
-  (:body (retrieve* (str api-url entity-col "(" id ")"
-                         (if fields (str "?" (build-select fields)) nil)))))
+  [entity-col id fields]
+  (try+ (:body (retrieve* [config] (str (:api-url config) entity-col "(" id ")"
+                               (if fields (str "?" (build-select fields)) nil))))
+        (catch [:status 404] [] {:status 404 :message (str "Id " id " not found in " entity-col)})))
 
 (defn retrieve-multiple
   "Retrieves a single entity from CRM.
+  `config` is a map of the configuration needed for OAuth with the CRM. See README for examples.
   `entity-col` is the entity's logical collection name (the plural, lowercase).
   `fields` is an optional coll. of logical field names. Omit if not required.
   `filter` is an optional OData filter string. Pass `nil` to include all fields.
   e.g
   (retrieve-multiple \"contacts\" [\"fullname\",\"createdon\"] \"firstname eq 'bob'\" )"
-  [entity-col fields filter-expr]
+  [config entity-col fields filter-expr]
   (let [field-str (if fields (build-select fields) nil)
         filter-str (if filter-expr (str "$filter=" filter-expr) nil)
         combined (filter identity [field-str filter-str])
-        final-uri (str api-url entity-col
+        final-uri (str (:api-url config) config) entity-col
                        (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil))]
     (get-in (retrieve* final-uri) [:body :value])))
 
 (defn create-record
   "Creates a record in CRM, returning the new id.
+   `config` is a map of the configuration needed for OAuth with the CRM. See README for examples.
   `entity-col` is the entity's logical collection name (the plural, lowercase).
   `new-record` is a map of the fields to be created on the new entity record
   e.g
   (create-record \"contacts\" {:firstname \"test\" :lastname \"person\"})"
-  [entity-col new-record]
-  (let [response (client/post (str api-url entity-col)
+  [config entity-col new-record]
+  (let [response (client/post (str (:api-url config) entity-col)
                               (assoc crm-options :content-type :json
-                                     :oauth-token (get-token)
+                                     :oauth-token (get-token config)
                                      :body (generate-string new-record)))
         entity-url (get-in response [:headers "OData-EntityId"])]
     (second (str/split entity-url #"\(|\)"))))
 
 (defn update-record
   "Updates an existing CRM record. Returns a ring response map.
+  `config` is a map of the configuration needed for OAuth with the CRM. See README for examples.
   `entity-col` is the entity's logical collection name (the plural, lowercase).
   `update-record` is a map of the fields/values to be updated on the new entity record.
   e.g
   (update-record \"contact\" {:firstname \"bob_updated\" :lastname \"person_updated\"})"
-  [entity-col id updated-record]
-  (client/patch (str api-url entity-col "(" id ")")
+  [config entity-col id updated-record]
+  (client/patch (str (:api-url config) entity-col "(" id ")")
                 (assoc crm-options :content-type :json
-                       :oauth-token (get-token)
+                       :oauth-token (get-token config)
                        :body (generate-string updated-record))))
 
 (defn delete-record
@@ -100,7 +100,7 @@
   `id` is the entity's GUID.
   e.g
   (delete-record \"contact\" \"9695bd5c-2635-e811-a834-000d3a33b1e4\")"
-  [entity-col id]
-  (client/delete (str api-url entity-col "(" id ")")
+  [config entity-col id]
+  (client/delete (str (:api-url config) entity-col "(" id ")")
                  (assoc crm-options :content-type :json
-                        :oauth-token (get-token))))
+                        :oauth-token (get-token config))))
