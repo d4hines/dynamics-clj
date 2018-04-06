@@ -39,6 +39,8 @@
 
 (defn retrieve* [uri] (client/get uri (assoc crm-options :oauth-token (get-token))))
 
+(defn metadata [] (retrieve* (str api-url "EntityDefinitions?$top=1")))
+
 (defn retrieve
   "Retrieves a single entity from CRM.
   `entity-col` is the entity's logical collection name (the plural, lowercase).
