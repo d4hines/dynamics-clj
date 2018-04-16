@@ -1,4 +1,4 @@
-(defproject dynamics-clj "0.1.4-SNAPSHOT"
+(defproject dynamics-clj "0.1.5"
   :description "Dynamics CRM Web API helper in Clojure"
   :url "https://github.com/d4hines/dynamics-clj"
   :license {:name "Eclipse Public License"
