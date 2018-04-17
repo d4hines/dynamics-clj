@@ -11,3 +11,4 @@ pom.xml.asc
 .hg/
 profiles.clj
 crm-config.edn
+core_scratch.clj

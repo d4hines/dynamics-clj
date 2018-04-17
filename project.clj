@@ -7,4 +7,6 @@
                  [ring/ring-codec "1.1.0"]
                  [clj-http "3.8.0"]
                  [cheshire "5.8.0"]
-                 [slingshot "0.12.2"]])
+                 [slingshot "0.12.2"]
+                 [proto-repl "0.3.1"]]
+  :profiles {:dev {:dependencies [[base64-clj "0.1.1"]]}})

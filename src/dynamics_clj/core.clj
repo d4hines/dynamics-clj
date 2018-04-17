@@ -3,7 +3,8 @@
             [clj-http.client :as client]
             [clojure.string :as str]
             [ring.util.codec :refer [url-encode]]
-            [slingshot.slingshot :refer [try+]]))
+            [slingshot.slingshot :refer [try+]])
+  (:import (org.apache.http.client.protocol HttpClientContext)))
 
 (defn get-token
   "Retrieves an OAuth2 token from Azure Active Directory.
@@ -30,14 +31,26 @@
              "Content-Type" "application/json; charset=utf-8",
              "Prefer" "odata.maxpagesize=500,odata.include-annotations=OData.Community.Display.V1.FormattedValue"}})
 
+(defn retrieve*
+  [{:keys [ntlm] :as config} endpoint]
+  (let [url (str (:crmwebapipath config) endpoint)]
+       (cond
+         ntlm
+         (let [ctx (HttpClientContext/create)
+               [user pass host domain] ntlm]
+           (client/with-connection-pool {:threads 1 :default-per-route 1}
+             (client/get url {:ntlm-auth [user pass host domain]
+                              :http-client-context ctx})
+             (client/get url
+                         (assoc crm-options :http-client-context ctx))))
+        :else
+         (client/get url
+           (assoc crm-options :oauth-token (get-token config))))))
+
 (defn build-select [fields] (let [field-count (count fields)]
                               (cond (=  0 field-count) nil
                                     (= 1 field-count) (str "$select=" (first fields)))
                               :else (str "$select=" (str/join "," fields))))
-
-(defn retrieve* [config endpoint] (client/get
-                                   (str (:crmwebapipath config) endpoint)
-                                   (assoc crm-options :oauth-token (get-token config))))
 
 (defn retrieve
   "Retrieves a single entity from CRM.
@@ -48,9 +61,9 @@
   e.g.
   (retrieve \"contacts\" \"914b2297-bf2f-e811-a833-000d3a33b3a3\" [\"fullname\",\"createdon\"])"
   [config entity-col id fields]
-   (try+ (:body (retrieve* config (str entity-col "(" id ")"
-                                    (if fields (str "?" (build-select fields)) nil))))
-        (catch [:status 404] [] {:status 404 :message (str "Id " id " not found in " entity-col)})))
+  (try+ (:body (retrieve* config (str entity-col "(" id ")"
+                                   (if fields (str "?" (build-select fields)) nil))))
+       (catch [:status 404] [] {:status 404 :message (str "Id " id " not found in " entity-col)})))
 
 (defn retrieve-multiple
   "Retrieves a single entity from CRM.
@@ -108,11 +121,11 @@
                         :oauth-token (get-token config))))
 
 ;; EXAMPLES
-(comment 
+(comment
   (def config (read-string (slurp "/crm-config.edn")))
 
   ;; Retrieve a contact, then get the ID of the first one returned.
-  (def id (get (first (retrieve-multiple config "contacts" ["fullname"] "firstname eq 'test'" ))
+  (def id (get (first (retrieve-multiple config "contacts" ["fullname"] "firstname eq 'test'"))
                "contactid"))
 
   ;; Retrieve all fields for a contact

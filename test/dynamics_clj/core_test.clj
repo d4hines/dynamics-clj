@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [dynamics-clj.core :refer [create-record]]))
 
-(create-record config "contacts" {:firstname "Billy" :lastname "Bob"})
+; (create-record config "contacts" {:firstname "Billy" :lastname "Bob"})
 
 ;; (
 ;;  def config {;; Azure AD Username
@@ -14,7 +14,7 @@
 ;;              ;; Dynamics CRM Url
 ;;              :crmorg "https://myorg.crm.dynamics.com"
 ;;              ;; You must register a new app in Azure AD > App Registrations. The type must be "Native".
-;;              ;; This will generate a new application with an application id (synonym for clientid) 
+;;              ;; This will generate a new application with an application id (synonym for clientid)
 ;;              ;; You must then go to Settings > Required Permissions (scroll right) > click Add > Dynamics CRM Online > click "Grant Permissions" (required!)
 ;;              :clientid  "some-guid"
 ;;              ;; Dynamics CRM > Settings > Customizations > Developer Settings > Web API Url (2016)
@@ -29,4 +29,3 @@
 ;; (def single-response "{\"@odata.context\":\"https://d4hines.crm.dynamics.com/api/data/v9.0/$metadata#contacts(fullname)/$entity\",\"fullname\":\"Billy Bob\",\"contactid\":\"e2577e87-3a34-e811-a834-000d3a33b1e4\"}")
 
 ;; (def token "secrettoken")
-
