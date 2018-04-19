@@ -26,10 +26,10 @@
   "Defaults for clj-http requests, along with the headers needed for the CRM OData requests."
   {:as :json-string-keys
    :headers {"OData-MaxVersion" "4.0",
-             "OData-Version" "4.0",
-             "Accept" "application/json",
-             "Content-Type" "application/json; charset=utf-8",
-             "Prefer" "odata.maxpagesize=500,odata.include-annotations=OData.Community.Display.V1.FormattedValue"}})
+              "OData-Version" "4.0",
+              "Accept" "application/json",
+              "Content-Type" "application/json; charset=utf-8",
+              "Prefer" "odata.maxpagesize=500,odata.include-annotations=OData.Community.Display.V1.FormattedValue"}})
 
 (defn retrieve*
   [{:keys [ntlm] :as config} endpoint]
@@ -80,6 +80,22 @@
         final-uri (str entity-col
                        (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil))]
     (get-in (retrieve* config final-uri) [:body "value"])))
+
+
+(defn get-query-by-name [config entity-col query-name userview?]
+  (let [query-type (if userview? "user" "saved")
+        query-entity (str query-type "queries")
+        filter (str "name eq '" query-name "'")
+        id-field (str query-type "queryid")
+        results (retrieve-multiple config query-entity [id-field] filter)
+        cnt (count results)
+        id (if (not= cnt 1)
+               (throw (Exception. (str "Expected 1 " query-type " view named " query-name
+                                   "but found " cnt)))
+               (get (first results) id-field))
+        final-uri (str entity-col "?" query-type "Query=" id)]
+       (get-in (retrieve* config final-uri) [:body "value"])))
+
 
 (defn create-record
   "Creates a record in CRM, returning the new id.

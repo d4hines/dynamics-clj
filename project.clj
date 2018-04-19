@@ -5,8 +5,10 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [ring/ring-codec "1.1.0"]
+                 [org.clojure/data.csv "0.1.4"]
                  [clj-http "3.8.0"]
                  [cheshire "5.8.0"]
                  [slingshot "0.12.2"]
+                 [clj-time "0.14.3"]
                  [proto-repl "0.3.1"]]
   :profiles {:dev {:dependencies [[base64-clj "0.1.1"]]}})
