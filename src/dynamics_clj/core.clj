@@ -1,10 +1,27 @@
 (ns dynamics-clj.core
   (:require [cheshire.core :refer [generate-string]]
             [clj-http.client :as client]
+            [clj-http.conn-mgr :as conn]
             [clojure.string :as str]
             [ring.util.codec :refer [url-encode]]
             [slingshot.slingshot :refer [try+]])
   (:import (org.apache.http.client.protocol HttpClientContext)))
+
+(defn crm-client
+  "Creates a fn with bindings to more conveniently call the other library fns.
+  Also necessary because of the stateful nature of the NTLM client
+  (see https://github.com/dakrone/clj-http/issues/409#issuecomment-394877745)"
+  [& [config]]
+  ;; If NTLM is being used, we want to make one single reusable connection manager
+  (if (get config :ntlm)
+    ;; For now, we're just going to trust the defaults for the conn manager
+    ;; that clj-http provides
+    (let [ntlm-conn (conn/make-reusable-conn-manager nil)]
+      (fn [func & args]
+        (binding [conn/*async-connection-manager* ntlm-conn]
+          (apply func config args))))
+    (fn [func & args]
+      (apply func config args))))
 
 (defn get-token
   "Retrieves an OAuth2 token from Azure Active Directory.
@@ -26,26 +43,26 @@
   "Defaults for clj-http requests, along with the headers needed for the CRM OData requests."
   {:as :json-string-keys
    :headers {"OData-MaxVersion" "4.0",
-              "OData-Version" "4.0",
-              "Accept" "application/json",
-              "Content-Type" "application/json; charset=utf-8",
-              "Prefer" "odata.maxpagesize=500,odata.include-annotations=OData.Community.Display.V1.FormattedValue"}})
+             "OData-Version" "4.0",
+             "Accept" "application/json",
+             "Content-Type" "application/json; charset=utf-8",
+             "Prefer" "odata.maxpagesize=500,odata.include-annotations=OData.Community.Display.V1.FormattedValue"}})
 
 (defn retrieve*
   [{:keys [ntlm] :as config} endpoint]
   (let [url (str (:crmwebapipath config) endpoint)]
-       (cond
-         ntlm
-         (let [ctx (HttpClientContext/create)
-               [user pass host domain] ntlm]
-           (client/with-connection-pool {:threads 1 :default-per-route 1}
-             (client/get url {:ntlm-auth [user pass host domain]
-                              :http-client-context ctx})
-             (client/get url
-                         (assoc crm-options :http-client-context ctx))))
-        :else
-         (client/get url
-           (assoc crm-options :oauth-token (get-token config))))))
+    (cond
+      ntlm
+      (let [ctx (HttpClientContext/create)
+            [user pass host domain] ntlm]
+        (client/with-connection-pool {:threads 1 :default-per-route 1}
+          (client/get url {:ntlm-auth [user pass host domain]
+                           :http-client-context ctx})
+          (client/get url
+                      (assoc crm-options :http-client-context ctx))))
+      :else
+      (client/get url
+                  (assoc crm-options :oauth-token (get-token config))))))
 
 (defn build-select [fields] (let [field-count (count fields)]
                               (cond (=  0 field-count) nil
@@ -62,8 +79,8 @@
   (retrieve \"contacts\" \"914b2297-bf2f-e811-a833-000d3a33b3a3\" [\"fullname\",\"createdon\"])"
   [config entity-col id fields]
   (try+ (:body (retrieve* config (str entity-col "(" id ")"
-                                   (if fields (str "?" (build-select fields)) nil))))
-       (catch [:status 404] [] {:status 404 :message (str "Id " id " not found in " entity-col)})))
+                                      (if fields (str "?" (build-select fields)) nil))))
+        (catch [:status 404] [] {:status 404 :message (str "Id " id " not found in " entity-col)})))
 
 (defn retrieve-multiple
   "Retrieves a single entity from CRM.
@@ -81,7 +98,6 @@
                        (if (> (count combined) 0) (str "?" (str/join "&" combined)) nil))]
     (get-in (retrieve* config final-uri) [:body "value"])))
 
-
 (defn get-query-by-name [config entity-col query-name userview?]
   (let [query-type (if userview? "user" "saved")
         query-entity (str query-type "queries")
@@ -90,12 +106,11 @@
         results (retrieve-multiple config query-entity [id-field] filter)
         cnt (count results)
         id (if (not= cnt 1)
-               (throw (Exception. (str "Expected 1 " query-type " view named " query-name
-                                   "but found " cnt)))
-               (get (first results) id-field))
+             (throw (Exception. (str "Expected 1 " query-type " view named " query-name
+                                     "but found " cnt)))
+             (get (first results) id-field))
         final-uri (str entity-col "?" query-type "Query=" id)]
-       (get-in (retrieve* config final-uri) [:body "value"])))
-
+    (get-in (retrieve* config final-uri) [:body "value"])))
 
 (defn create-record
   "Creates a record in CRM, returning the new id.
